@@ -5,6 +5,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Taller1.Data;
 using Taller1.Models;
+using Taller1.Settings;
+using Taller1.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,10 +28,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             ValidateIssuer = false,
             ValidateAudience = false,
+            ValidateLifetime = true, // ✅ ESTA LÍNEA FALTABA
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(key)
         };
     });
+builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("Cloudinary"));
+builder.Services.AddScoped<CloudinaryService>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
@@ -45,4 +51,12 @@ app.UseAuthentication(); // Importante
 app.UseAuthorization();
 
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+    await DbInitializer.SeedRolesAndAdmin(userManager, roleManager);
+}
 app.Run();
